@@ -1,81 +1,47 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
-<!-- saved from url=(0072)http://media.pearsoncmg.com/aw/aw_kurose_network_2/labs/VideoStream.html -->
-<HTML><HEAD><TITLE>VideoStream.java</TITLE>
-<META http-equiv=Content-Type content="text/html; charset=windows-1252">
-<STYLE type=text/css>H1 {
-	FONT-WEIGHT: normal; FONT-SIZE: 19pt; COLOR: #8989db; FONT-FAMILY: Arial, sans-serif
-}
-H2 {
-	FONT-WEIGHT: bold; FONT-SIZE: 16pt; COLOR: black; FONT-FAMILY: Arial, sans-serif
-}
-H3 {
-	FONT-WEIGHT: bold; FONT-SIZE: 14pt; COLOR: #8989db; FONT-FAMILY: Arial, sans-serif
-}
-P {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-TD {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-TH {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-DT {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-DD {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-LI {
-	FONT-SIZE: 10pt; FONT-FAMILY: Arial, sans-serif
-}
-A:link {
-	COLOR: #000066
-}
-A:visited {
-	COLOR: #666666
-}
-</STYLE>
+// ------------------------------------------------------
+// VideoStream.java  (clean, error–free version)
+// Used in the RTP/RTSP Streaming Lab – Kurose & Ross
+// ------------------------------------------------------
 
-<META content="MSHTML 6.00.2800.1400" name=GENERATOR></HEAD>
-<BODY>
-<H3><A name=videostream>VideoStream.java</A></H3><PRE>//VideoStream
-
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class VideoStream {
 
-  FileInputStream fis; //video file
-  int frame_nb; //current frame nb
+  private FileInputStream fis; // video file input stream
+  private int frame_nb; // current frame number
 
-  //-----------------------------------
-  //constructor
-  //-----------------------------------
-  public VideoStream(String filename) throws Exception{
-
-    //init variables
+  // ------------------------------------------------------
+  // Constructor
+  // ------------------------------------------------------
+  public VideoStream(String filename) throws Exception {
     fis = new FileInputStream(filename);
     frame_nb = 0;
   }
 
-  //-----------------------------------
+  // ------------------------------------------------------
   // getnextframe
-  //returns the next frame as an array of byte and the size of the frame
-  //-----------------------------------
-  public int getnextframe(byte[] frame) throws Exception
-  {
-    int length = 0;
-    String length_string;
-    byte[] frame_length = new byte[5];
+  // Reads:
+  // 1) 5 bytes: ASCII length of frame
+  // 2) 'length' bytes: JPEG frame data
+  //
+  // Returns number of bytes actually read into 'frame'
+  // ------------------------------------------------------
+  public int getnextframe(byte[] frame) throws IOException {
 
-    //read current frame length
-    fis.read(frame_length,0,5);
-	
-    //transform frame_length to integer
-    length_string = new String(frame_length);
-    length = Integer.parseInt(length_string);
-	
-    return(fis.read(frame,0,length));
+    byte[] frame_length_bytes = new byte[5];
+
+    // Read the 5-byte header (ASCII length)
+    int read_len = fis.read(frame_length_bytes, 0, 5);
+    if (read_len < 5) {
+      return -1; // End of file
+    }
+
+    // Convert "00024" → 24
+    String length_str = new String(frame_length_bytes);
+    int length = Integer.parseInt(length_str.trim());
+
+    // Read 'length' bytes into the frame buffer
+    return fis.read(frame, 0, length);
   }
 }
-</PRE></BODY></HTML>
