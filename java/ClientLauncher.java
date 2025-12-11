@@ -1,89 +1,69 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import java.io.*;
+import java.net.*;
 
-public class ClientLauncher extends JFrame {
+public class Client {
 
-    private Client client; // client RTSP
-    private JTextArea logArea; // hiện log
+    private Socket socket;
+    private BufferedWriter writer;
+    private BufferedReader reader;
+    private int cseq = 1;
 
-    public ClientLauncher() {
-        setTitle("Java RTSP Client Launcher");
-        setSize(500, 400);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+    private JTextArea log;
 
-        // ===== Log panel =====
-        logArea = new JTextArea();
-        logArea.setEditable(false);
-        JScrollPane scroll = new JScrollPane(logArea);
+    public Client(JTextArea logArea) throws Exception {
+        this.log = logArea;
 
-        // ===== Button panel =====
-        JPanel panel = new JPanel();
-        JButton btnConnect = new JButton("Connect");
-        JButton btnPlay = new JButton("Play");
-        JButton btnPause = new JButton("Pause");
-        JButton btnTeardown = new JButton("Teardown");
+        socket = new Socket("localhost", 8554);
+        writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+        reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        append("Connected to server.");
 
-        panel.add(btnConnect);
-        panel.add(btnPlay);
-        panel.add(btnPause);
-        panel.add(btnTeardown);
-
-        add(scroll, BorderLayout.CENTER);
-        add(panel, BorderLayout.SOUTH);
-
-        // ===== Actions =====
-        btnConnect.addActionListener(e -> connectToServer());
-        btnPlay.addActionListener(e -> playVideo());
-        btnPause.addActionListener(e -> pauseVideo());
-        btnTeardown.addActionListener(e -> teardown());
-
-        setVisible(true);
+        sendRequest("OPTIONS rtsp://localhost:8554/video RTSP/1.0");
+        sendRequest("DESCRIBE rtsp://localhost:8554/video RTSP/1.0");
+        sendRequest("SETUP rtsp://localhost:8554/video RTSP/1.0");
     }
 
-    private void connectToServer() {
-        append("Connecting...");
+    private void sendRequest(String req) throws IOException {
+        writer.write(req + "\r\n");
+        writer.write("CSeq: " + cseq++ + "\r\n\r\n");
+        writer.flush();
+
+        append(">>> " + req);
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+            append("<<< " + line);
+            if (line.trim().isEmpty())
+                break;
+        }
+    }
+
+    public void sendPlay() {
         try {
-            client = new Client(logArea);
-            append("Connected!");
-        } catch (Exception ex) {
-            append("Connect failed: " + ex.getMessage());
+            sendRequest("PLAY rtsp://localhost:8554/video RTSP/1.0");
+        } catch (Exception e) {
+            append(e.getMessage());
         }
     }
 
-    private void playVideo() {
-        if (client == null) {
-            append("Not connected.");
-            return;
+    public void sendPause() {
+        try {
+            sendRequest("PAUSE rtsp://localhost:8554/video RTSP/1.0");
+        } catch (Exception e) {
+            append(e.getMessage());
         }
-        append("Sending PLAY...");
-        client.sendPlay();
     }
 
-    private void pauseVideo() {
-        if (client == null) {
-            append("Not connected.");
-            return;
+    public void sendTeardown() {
+        try {
+            sendRequest("TEARDOWN rtsp://localhost:8554/video RTSP/1.0");
+        } catch (Exception e) {
+            append(e.getMessage());
         }
-        append("Sending PAUSE...");
-        client.sendPause();
     }
 
-    private void teardown() {
-        if (client == null) {
-            append("Not connected.");
-            return;
-        }
-        append("Sending TEARDOWN...");
-        client.sendTeardown();
-    }
-
-    private void append(String msg) {
-        logArea.append(msg + "\n");
-    }
-
-    public static void main(String[] args) {
-        new ClientLauncher();
+    private void append(String s) {
+        if (log != null)
+            log.append(s + "\n");
     }
 }
